@@ -1,0 +1,15 @@
+[package]
+name = "rust-gpu-tokenizer-shaders"
+version = "0.1.0"
+edition = "2024"
+
+[lints]
+workspace = true
+
+[dependencies]
+# rust-gpu
+spirv-std.workspace = true
+
+# math + POD
+glam.workspace = true
+bytemuck.workspace = true

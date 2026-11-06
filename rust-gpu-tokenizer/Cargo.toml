@@ -1,0 +1,34 @@
+[package]
+name = "rust-gpu-tokenizer"
+publish = false
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+# shader crate
+rust-gpu-tokenizer-shaders = { path = "../rust-gpu-tokenizer-shaders" }
+
+# GPU API
+wgpu.workspace = true
+pollster.workspace = true
+
+# data + POD
+bytemuck.workspace = true
+
+# other
+anyhow.workspace = true
+regex.workspace = true
+rayon.workspace = true
+
+[build-dependencies]
+# rust-gpu
+cargo-gpu-install.workspace = true
+
+# other
+anyhow.workspace = true

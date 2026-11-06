@@ -1,0 +1,46 @@
+[workspace]
+members = [
+    "cubecl_impl",
+    "cuda_rust_impl",
+    "rust-gpu-tokenizer",
+    "rust-gpu-tokenizer-shaders",
+]
+resolver = "3"
+
+[workspace.package]
+version = "0.1.0"
+authors = ["Jan Cristina <jan.cristina@gmail.com>"]
+edition = "2024"
+license = "MIT"
+repository = ""
+
+[workspace.lints.rust]
+unexpected_cfgs = { level = "allow", check-cfg = ['cfg(target_arch, values("spirv"))'] }
+
+[workspace.dependencies]
+# GPU API
+wgpu = { version = "30.0.1", default-features = false, features = ["std", "parking_lot", "vulkan", "vulkan-portability", "spirv", "wgsl"] }
+pollster = "1.0.1"
+
+# rust-gpu
+# While `cargo-gpu` is backwards compatible with older rust-gpu versions,
+# easiest is to just match the versions exactly.
+cargo-gpu-install = { version = "0.11.0" }
+spirv-std = { version = "0.11.0" }
+
+# math + POD
+glam = { version = "0.34", default-features = false, features = ["bytemuck"] }
+bytemuck = { version = "1.24.0", features = ["derive"] }
+
+# other
+anyhow = "1.0.98"
+regex = "1.13.1"
+rayon = "1.11"
+
+# Compile build-dependencies in release mode with
+# the same settings as regular dependencies.
+[profile.release.build-override]
+opt-level = 3
+codegen-units = 16
+[profile.dev.build-override]
+opt-level = 3
