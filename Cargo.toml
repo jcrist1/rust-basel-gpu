@@ -21,6 +21,7 @@ unexpected_cfgs = { level = "allow", check-cfg = ['cfg(target_arch, values("spir
 # GPU API
 wgpu = { version = "30.0.1", default-features = false, features = ["std", "parking_lot", "vulkan", "vulkan-portability", "spirv", "wgsl"] }
 pollster = "1.0.1"
+ash = { version = "0.38.0", features = ["linked"] }
 
 # rust-gpu
 # While `cargo-gpu` is backwards compatible with older rust-gpu versions,
@@ -31,6 +32,10 @@ spirv-std = { version = "0.11.0" }
 # math + POD
 glam = { version = "0.34", default-features = false, features = ["bytemuck"] }
 bytemuck = { version = "1.24.0", features = ["derive"] }
+
+# parquet
+parquet = "58.4.0"
+arrow-array = "58.4.0"
 
 # other
 anyhow = "1.0.98"

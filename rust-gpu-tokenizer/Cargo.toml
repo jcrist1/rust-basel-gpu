@@ -17,9 +17,14 @@ rust-gpu-tokenizer-shaders = { path = "../rust-gpu-tokenizer-shaders" }
 # GPU API
 wgpu.workspace = true
 pollster.workspace = true
+ash.workspace = true
 
 # data + POD
 bytemuck.workspace = true
+
+# parquet input
+parquet.workspace = true
+arrow-array.workspace = true
 
 # other
 anyhow.workspace = true
