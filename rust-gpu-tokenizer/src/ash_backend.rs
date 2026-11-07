@@ -18,6 +18,7 @@ const BIND_RULES: usize = 1;
 const BIND_LEFT_INDEX: usize = 2;
 const BIND_BYTE_TO_ID: usize = 3;
 const BIND_HOT: usize = 4;
+const BIND_OUT_TOKENS: usize = 5;
 const BIND_OUT_LENS: usize = 6;
 
 pub struct AshStream {
@@ -86,7 +87,11 @@ unsafe fn create_host_buffer(
     Ok((buffer, mem))
 }
 
-unsafe fn upload<T: Copy>(device: &Device, mem: vk::DeviceMemory, data: &[T]) -> anyhow::Result<()> {
+unsafe fn upload<T: Copy>(
+    device: &Device,
+    mem: vk::DeviceMemory,
+    data: &[T],
+) -> anyhow::Result<()> {
     let bytes = std::mem::size_of_val(data) as u64;
     if bytes == 0 {
         return Ok(());
@@ -147,7 +152,8 @@ impl AshStream {
             let queue_family = families
                 .iter()
                 .position(|p| p.queue_flags.contains(vk::QueueFlags::COMPUTE))
-                .ok_or_else(|| anyhow!("no compute queue family"))? as u32;
+                .ok_or_else(|| anyhow!("no compute queue family"))?
+                as u32;
 
             // Portability subset must be enabled if advertised.
             let dev_available = instance.enumerate_device_extension_properties(physical)?;
@@ -206,13 +212,9 @@ impl AshStream {
                 None,
             )?;
 
-            let spv = ash::util::read_spv(&mut std::fs::File::open(env!(
-                "WGPU_KERNEL_SPV_PATH"
-            ))?)?;
-            let shader_module = device.create_shader_module(
-                &vk::ShaderModuleCreateInfo::default().code(&spv),
-                None,
-            )?;
+            let spv = ash::util::read_spv(&mut std::fs::File::open(env!("WGPU_KERNEL_SPV_PATH"))?)?;
+            let shader_module = device
+                .create_shader_module(&vk::ShaderModuleCreateInfo::default().code(&spv), None)?;
             let entry_name = CString::new(format!("bpe{wg}"))?;
             let stage = vk::PipelineShaderStageCreateInfo::default()
                 .stage(vk::ShaderStageFlags::COMPUTE)
@@ -229,13 +231,13 @@ impl AshStream {
             let mut buffers: Vec<(vk::Buffer, vk::DeviceMemory)> = Vec::with_capacity(7);
             // Binding order must match the kernel.
             let sizes = [
-                (num * PACKED_WORDS * 4) as u64,          // packed
-                size_of_val(rules) as u64,                // rules
-                ((num_ids + 1) * 4) as u64,               // left_index
-                size_of_val(byte_to_id) as u64,           // byte_to_id
-                size_of_val(hot) as u64,                  // hot
-                (num * SMALL_LEN * 4) as u64,             // out_tokens
-                (num * 4) as u64,                         // out_lens
+                (num * PACKED_WORDS * 4) as u64, // packed
+                size_of_val(rules) as u64,       // rules
+                ((num_ids + 1) * 4) as u64,      // left_index
+                size_of_val(byte_to_id) as u64,  // byte_to_id
+                size_of_val(hot) as u64,         // hot
+                (num * SMALL_LEN * 4) as u64,    // out_tokens
+                (num * 4) as u64,                // out_lens
             ];
             for &size in &sizes {
                 buffers.push(create_host_buffer(&device, &mem_props, size)?);
@@ -304,8 +306,8 @@ impl AshStream {
         }
     }
 
-    /// Encode at most `self.num` pretokens; returns the token count.
-    pub fn encode(&mut self, pretokens: &[SmallStr]) -> anyhow::Result<u64> {
+    /// Pack and dispatch `pretokens` (at most `self.num`), then wait.
+    fn dispatch(&mut self, pretokens: &[SmallStr]) -> anyhow::Result<()> {
         let groups = pretokens.len().div_ceil(self.wg);
         let covered = groups * self.wg;
         let used = covered * PACKED_WORDS;
@@ -321,12 +323,14 @@ impl AshStream {
         }
 
         unsafe {
-            upload(&self.device, self.buffers[BIND_PACKED].1, &self.packed[..used])?;
-
-            self.device.reset_command_buffer(
-                self.command_buffer,
-                vk::CommandBufferResetFlags::empty(),
+            upload(
+                &self.device,
+                self.buffers[BIND_PACKED].1,
+                &self.packed[..used],
             )?;
+
+            self.device
+                .reset_command_buffer(self.command_buffer, vk::CommandBufferResetFlags::empty())?;
             self.device.begin_command_buffer(
                 self.command_buffer,
                 &vk::CommandBufferBeginInfo::default(),
@@ -362,10 +366,18 @@ impl AshStream {
 
             let command_buffers = [self.command_buffer];
             let submit = vk::SubmitInfo::default().command_buffers(&command_buffers);
-            self.device.queue_submit(self.queue, &[submit], self.fence)?;
+            self.device
+                .queue_submit(self.queue, &[submit], self.fence)?;
             self.device.wait_for_fences(&[self.fence], true, u64::MAX)?;
             self.device.reset_fences(&[self.fence])?;
+            Ok(())
+        }
+    }
 
+    /// Encode at most `self.num` pretokens; returns the token count.
+    pub fn encode(&mut self, pretokens: &[SmallStr]) -> anyhow::Result<u64> {
+        self.dispatch(pretokens)?;
+        unsafe {
             let bytes = (pretokens.len() * 4) as u64;
             let ptr = self.device.map_memory(
                 self.buffers[BIND_OUT_LENS].1,
@@ -379,6 +391,39 @@ impl AshStream {
             Ok(total)
         }
     }
+
+    /// Like [`Self::encode`] but returns the flattened token ids (chunk-major).
+    pub fn encode_tokens(&mut self, pretokens: &[SmallStr]) -> anyhow::Result<Vec<u32>> {
+        self.dispatch(pretokens)?;
+        unsafe {
+            let lens_bytes = (pretokens.len() * 4) as u64;
+            let lens_ptr = self.device.map_memory(
+                self.buffers[BIND_OUT_LENS].1,
+                0,
+                lens_bytes,
+                vk::MemoryMapFlags::empty(),
+            )?;
+            let lens = std::slice::from_raw_parts(lens_ptr as *const u32, pretokens.len());
+            let tokens_bytes = (self.num * SMALL_LEN * 4) as u64;
+            let tokens_ptr = self.device.map_memory(
+                self.buffers[BIND_OUT_TOKENS].1,
+                0,
+                tokens_bytes,
+                vk::MemoryMapFlags::empty(),
+            )?;
+            let tokens = std::slice::from_raw_parts(tokens_ptr as *const u32, self.num * SMALL_LEN);
+            let mut out = Vec::new();
+            for i in 0..pretokens.len() {
+                let len = lens[i] as usize;
+                for k in 0..len {
+                    out.push(tokens[k * self.num + i]);
+                }
+            }
+            self.device.unmap_memory(self.buffers[BIND_OUT_TOKENS].1);
+            self.device.unmap_memory(self.buffers[BIND_OUT_LENS].1);
+            Ok(out)
+        }
+    }
 }
 
 impl Drop for AshStream {
@@ -386,8 +431,10 @@ impl Drop for AshStream {
         unsafe {
             let _ = self.device.device_wait_idle();
             self.device.destroy_pipeline(self.pipeline, None);
-            self.device.destroy_pipeline_layout(self.pipeline_layout, None);
-            self.device.destroy_descriptor_pool(self.descriptor_pool, None);
+            self.device
+                .destroy_pipeline_layout(self.pipeline_layout, None);
+            self.device
+                .destroy_descriptor_pool(self.descriptor_pool, None);
             self.device.destroy_command_pool(self.command_pool, None);
             self.device.destroy_fence(self.fence, None);
             self.device.destroy_shader_module(self.shader_module, None);

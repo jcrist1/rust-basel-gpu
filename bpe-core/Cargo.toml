@@ -1,0 +1,20 @@
+[package]
+name = "bpe-core"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+bytemuck = { workspace = true, optional = true }
+
+[features]
+default = []
+# `Pod`/`Zeroable` impls for the shared structs (needed by rust-gpu / wgpu).
+pod = ["dep:bytemuck"]
+# Host-only conveniences such as `SmallStr::from(&str)`.
+std = []

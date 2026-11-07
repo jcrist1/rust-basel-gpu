@@ -3,4 +3,22 @@ name = "cuda_rust_impl"
 version = "0.1.0"
 edition = "2024"
 
+# cuda-oxide is Linux-only and pins Rust 1.99.1, so this crate is its own
+# workspace (see the root Cargo.toml `exclude`). Build/run it with:
+#   cd cuda_rust_impl && cargo oxide run
+[workspace]
+
 [dependencies]
+# CUDA Oxide. `cuda-host` depends on `cuda-core` by path at tip of tree, so
+# all three must come from the same git checkout.
+cuda-device = { git = "https://github.com/NVIDIA/cuda-rust.git" }
+cuda-host = { git = "https://github.com/NVIDIA/cuda-rust.git" }
+cuda-core = { git = "https://github.com/NVIDIA/cuda-rust.git" }
+
+# Shared device core + host plumbing
+bpe-core = { path = "../bpe-core", features = ["pod"] }
+tokenizer-host = { path = "../tokenizer-host" }
+
+# other
+anyhow = "1.0"
+rayon = "1.11"

@@ -1,10 +1,15 @@
 [workspace]
 members = [
+    "bpe-core",
     "cubecl_impl",
-    "cuda_rust_impl",
     "rust-gpu-tokenizer",
     "rust-gpu-tokenizer-shaders",
+    "tokenizer-host",
 ]
+# cuda_rust_impl is its own workspace: cuda-oxide pins Rust 1.99.1 and needs
+# `cargo oxide` (Linux + CUDA 13), which conflicts with the rust-gpu nightly
+# toolchain used by the rest of this workspace.
+exclude = ["cuda_rust_impl"]
 resolver = "3"
 
 [workspace.package]

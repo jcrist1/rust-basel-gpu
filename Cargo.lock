@@ -190,6 +190,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "bpe-core"
+version = "0.1.0"
+dependencies = [
+ "bytemuck",
+]
+
+[[package]]
 name = "brotli"
 version = "8.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -416,10 +423,6 @@ checksum = "460fbee9c2c2f33933d720630a6a0bac33ba7053db5344fac858d4b8952d77d5"
 
 [[package]]
 name = "cubecl_impl"
-version = "0.1.0"
-
-[[package]]
-name = "cuda_rust_impl"
 version = "0.1.0"
 
 [[package]]
@@ -1367,15 +1370,13 @@ name = "rust-gpu-tokenizer"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "arrow-array",
  "ash",
  "bytemuck",
  "cargo-gpu-install",
- "parquet",
  "pollster",
  "rayon",
- "regex",
  "rust-gpu-tokenizer-shaders",
+ "tokenizer-host",
  "wgpu",
 ]
 
@@ -1383,7 +1384,7 @@ dependencies = [
 name = "rust-gpu-tokenizer-shaders"
 version = "0.1.0"
 dependencies = [
- "bytemuck",
+ "bpe-core",
  "glam",
  "spirv-std",
 ]
@@ -1711,6 +1712,18 @@ checksum = "b1e27c91459209c2986af3dcf603a5a74a4368754ce37414f59acc971167f643"
 dependencies = [
  "displaydoc",
  "zerovec",
+]
+
+[[package]]
+name = "tokenizer-host"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "arrow-array",
+ "bpe-core",
+ "parquet",
+ "rayon",
+ "regex",
 ]
 
 [[package]]

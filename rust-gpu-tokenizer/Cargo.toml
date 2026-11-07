@@ -13,6 +13,8 @@ workspace = true
 [dependencies]
 # shader crate
 rust-gpu-tokenizer-shaders = { path = "../rust-gpu-tokenizer-shaders" }
+# shared host plumbing (vocab, pretokenizer, parquet input)
+tokenizer-host = { path = "../tokenizer-host" }
 
 # GPU API
 wgpu.workspace = true
@@ -22,13 +24,8 @@ ash.workspace = true
 # data + POD
 bytemuck.workspace = true
 
-# parquet input
-parquet.workspace = true
-arrow-array.workspace = true
-
 # other
 anyhow.workspace = true
-regex.workspace = true
 rayon.workspace = true
 
 [build-dependencies]

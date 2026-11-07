@@ -1,0 +1,8 @@
+/target/
+.DS_Store
+*.bc
+*.ptx
+*.ll
+*.ltoir
+*.cubin
+*.spv

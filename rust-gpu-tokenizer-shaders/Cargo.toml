@@ -7,9 +7,11 @@ edition = "2024"
 workspace = true
 
 [dependencies]
+# shared device core
+bpe-core = { path = "../bpe-core", features = ["pod"] }
+
 # rust-gpu
 spirv-std.workspace = true
 
-# math + POD
+# math
 glam.workspace = true
-bytemuck.workspace = true
